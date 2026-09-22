@@ -1,0 +1,22 @@
+{
+  "name": "Multi-Story School Complex",
+  "floors": 3,
+  "width": 32,
+  "height": 20,
+  "defaultAgentCount": 300,
+  "exits": [
+    { "id": 1, "name": "Main Entrance Ground", "x": 0, "y": 10, "floor": 0 },
+    { "id": 2, "name": "East Emergency Exit", "x": 31, "y": 10, "floor": 0 },
+    { "id": 3, "name": "North Gate Exit", "x": 16, "y": 0, "floor": 0 }
+  ],
+  "stairwells": [
+    { "fromFloor": 0, "toFloor": 1, "x": 2, "y": 9 },
+    { "fromFloor": 1, "toFloor": 2, "x": 2, "y": 9 },
+    { "fromFloor": 0, "toFloor": 1, "x": 29, "y": 9 },
+    { "fromFloor": 1, "toFloor": 2, "x": 29, "y": 9 }
+  ],
+  "hazardSources": [
+    { "type": "FIRE", "x": 10, "y": 10, "floor": 0, "initialIntensity": 0.6 },
+    { "type": "SMOKE", "x": 15, "y": 10, "floor": 1, "initialIntensity": 0.4 }
+  ]
+}

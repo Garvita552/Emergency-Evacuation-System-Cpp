@@ -1,0 +1,21 @@
+{
+  "name": "High-Rise Office Tower",
+  "floors": 5,
+  "width": 30,
+  "height": 30,
+  "defaultAgentCount": 400,
+  "exits": [
+    { "id": 1, "name": "Tower South Lobby Exit", "x": 0, "y": 15, "floor": 0 },
+    { "id": 2, "name": "Tower North Emergency Exit", "x": 29, "y": 15, "floor": 0 }
+  ],
+  "stairwells": [
+    { "fromFloor": 0, "toFloor": 1, "x": 13, "y": 13 },
+    { "fromFloor": 1, "toFloor": 2, "x": 13, "y": 13 },
+    { "fromFloor": 2, "toFloor": 3, "x": 13, "y": 13 },
+    { "fromFloor": 3, "toFloor": 4, "x": 13, "y": 13 }
+  ],
+  "hazardSources": [
+    { "type": "FIRE", "x": 15, "y": 15, "floor": 3, "initialIntensity": 0.8 },
+    { "type": "COLLAPSE", "x": 13, "y": 15, "floor": 2, "initialIntensity": 1.0 }
+  ]
+}

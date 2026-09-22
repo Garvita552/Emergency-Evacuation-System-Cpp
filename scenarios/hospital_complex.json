@@ -1,0 +1,23 @@
+{
+  "name": "Hospital Emergency Trauma Center",
+  "floors": 4,
+  "width": 36,
+  "height": 24,
+  "defaultAgentCount": 250,
+  "exits": [
+    { "id": 1, "name": "ER Ambulance Bay", "x": 0, "y": 12, "floor": 0 },
+    { "id": 2, "name": "Main Lobby West Exit", "x": 35, "y": 12, "floor": 0 },
+    { "id": 3, "name": "ICU Fire Exit North", "x": 18, "y": 0, "floor": 0 }
+  ],
+  "stairwells": [
+    { "fromFloor": 0, "toFloor": 1, "x": 5, "y": 5 },
+    { "fromFloor": 1, "toFloor": 2, "x": 5, "y": 5 },
+    { "fromFloor": 2, "toFloor": 3, "x": 5, "y": 5 },
+    { "fromFloor": 0, "toFloor": 1, "x": 30, "y": 5 },
+    { "fromFloor": 1, "toFloor": 2, "x": 30, "y": 5 },
+    { "fromFloor": 2, "toFloor": 3, "x": 30, "y": 5 }
+  ],
+  "hazardSources": [
+    { "type": "GAS", "x": 18, "y": 12, "floor": 2, "initialIntensity": 0.7 }
+  ]
+}

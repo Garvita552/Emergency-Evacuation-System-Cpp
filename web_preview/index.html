@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emergency Evacuation Simulator — 10 Unique Building Geometries & Gradual Hazard Expansion</title>
+  <!-- Three.js and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Chart.js for real-time telemetry graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --bg-dark: #060913;
+      --panel-bg: rgba(11, 17, 30, 0.94);
+      --panel-border: rgba(0, 229, 255, 0.3);
+      --cyan-glow: #00e5ff;
+      --purple-glow: #a100ff;
+      --danger-red: #ff3366;
+      --warning-orange: #ff9900;
+      --success-green: #00ff88;
+      --text-main: #e6f0ff;
+      --text-muted: #7f93b5;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      height: 55px;
+      background: linear-gradient(180deg, rgba(16, 25, 45, 0.95), rgba(8, 12, 22, 0.95));
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: var(--cyan-glow);
+      text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+    }
+    .brand i { font-size: 1.3rem; color: var(--purple-glow); }
+
+    .nav-tabs { display: flex; gap: 6px; height: 100%; align-items: center; }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.25s ease;
+    }
+    .tab-btn:hover { color: var(--cyan-glow); background: rgba(0, 229, 255, 0.08); border-color: rgba(0, 229, 255, 0.3); }
+    .tab-btn.active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.25), rgba(161, 0, 255, 0.25));
+      border-color: var(--cyan-glow);
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+    }
+
+    .status-badge {
+      display: flex; align-items: center; gap: 8px; font-size: 0.78rem;
+      background: rgba(0, 255, 136, 0.1); border: 1px solid var(--success-green);
+      color: var(--success-green); padding: 4px 12px; border-radius: 20px; font-weight: 700;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success-green); box-shadow: 0 0 8px var(--success-green); }
+
+    .app-container { flex: 1; display: flex; position: relative; overflow: hidden; }
+    .tab-pane { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+    .tab-pane.active { display: flex; }
+
+    .viewport-container { flex: 1; position: relative; background: radial-gradient(circle at center, #0e172a 0%, #050810 100%); }
+    #threejs-canvas { width: 100%; height: 100%; display: block; }
+
+    .camera-overlay {
+      position: absolute; top: 15px; left: 15px;
+      background: var(--panel-bg); border: 1px solid var(--panel-border);
+      border-radius: 8px; padding: 10px 14px; display: flex; gap: 8px;
+      backdrop-filter: blur(10px); box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 10;
+    }
+
+    .overlay-btn {
+      background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-main); padding: 6px 12px; border-radius: 4px; cursor: pointer;
+      font-size: 0.78rem; display: flex; align-items: center; gap: 6px; transition: all 0.2s;
+    }
+    .overlay-btn:hover { background: rgba(0, 229, 255, 0.2); border-color: var(--cyan-glow); }
+    .overlay-btn.active-mode { background: var(--cyan-glow); color: #000; font-weight: 700; }
+
+    .sidebar-console {
+      width: 410px; background: var(--panel-bg); border-left: 1px solid var(--panel-border);
+      display: flex; flex-direction: column; padding: 14px; gap: 14px; overflow-y: auto;
+      backdrop-filter: blur(12px); box-shadow: -5px 0 25px rgba(0,0,0,0.6); z-index: 10;
+    }
+
+    .module-card {
+      background: rgba(16, 24, 40, 0.6); border: 1px solid rgba(0, 229, 255, 0.15);
+      border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;
+    }
+
+    .module-header {
+      font-size: 0.82rem; font-weight: 700; color: var(--cyan-glow);
+      text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 5px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-label { font-size: 0.73rem; color: var(--text-muted); font-weight: 600; }
+
+    .form-control, .form-select {
+      background: rgba(5, 10, 20, 0.8); border: 1px solid rgba(0, 229, 255, 0.25);
+      color: var(--text-main); padding: 7px 10px; border-radius: 5px; font-size: 0.82rem; outline: none;
+    }
+
+    .btn-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+
+    .btn-action {
+      background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.3);
+      color: var(--cyan-glow); padding: 8px; border-radius: 5px; font-size: 0.78rem; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;
+    }
+    .btn-action:hover { background: var(--cyan-glow); color: #000; box-shadow: 0 0 12px var(--cyan-glow); }
+    .btn-primary-sim { background: linear-gradient(135deg, var(--cyan-glow), var(--purple-glow)); color: #fff; border: none; box-shadow: 0 0 15px rgba(0, 229, 255, 0.4); }
+    .btn-danger-sim { background: rgba(255, 51, 102, 0.2); border-color: var(--danger-red); color: var(--danger-red); }
+    .btn-danger-sim:hover { background: var(--danger-red); color: #fff; box-shadow: 0 0 12px var(--danger-red); }
+
+    .metrics-summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .metric-card-sm { background: rgba(6, 12, 24, 0.8); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+    .metric-val { font-size: 1.2rem; font-weight: 800; color: var(--cyan-glow); }
+    .metric-lbl { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; }
+
+    .modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(4, 8, 16, 0.88); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; }
+    .modal-backdrop.active { display: flex; }
+    .modal-card { width: 600px; background: linear-gradient(145deg, rgba(14, 22, 38, 0.95), rgba(7, 11, 22, 0.98)); border: 2px solid var(--cyan-glow); box-shadow: 0 0 30px rgba(0, 229, 255, 0.4); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+    .modal-title { font-size: 1.1rem; font-weight: 800; color: var(--cyan-glow); text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid rgba(0,229,255,0.2); padding-bottom: 8px; }
+    .summary-list { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .summary-item { display: flex; justify-content: space-between; font-size: 0.85rem; }
+
+    .benchmark-table, .risk-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .benchmark-table th, .benchmark-table td, .risk-table th, .risk-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .benchmark-table th, .risk-table th { background: rgba(0, 229, 255, 0.1); color: var(--cyan-glow); font-weight: 700; }
+
+    .risk-card { background: rgba(16, 24, 40, 0.7); border-left: 4px solid var(--warning-orange); border-radius: 6px; padding: 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .risk-card.critical { border-left-color: var(--danger-red); }
+
+    .logs-box { background: #03060d; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; height: 100px; overflow-y: auto; padding: 8px; font-family: monospace; font-size: 0.72rem; color: #9cb5db; }
+    .log-line { margin-bottom: 4px; }
+    .log-crit { color: var(--danger-red); }
+    .log-sens { color: var(--warning-orange); }
+
+    #heatmap-legend { position: absolute; bottom: 20px; left: 20px; background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 6px; padding: 8px 12px; font-size: 0.75rem; display: flex; align-items: center; gap: 8px; z-index: 10; }
+    .legend-bar { width: 120px; height: 10px; border-radius: 3px; background: linear-gradient(90deg, #00ff88, #ffea00, #ff3366); }
+
+    .agent-popover { display: none; position: absolute; top: 80px; right: 430px; width: 280px; background: var(--panel-bg); border: 1px solid var(--cyan-glow); box-shadow: 0 0 15px rgba(0, 229, 255, 0.3); border-radius: 8px; padding: 12px; z-index: 15; font-size: 0.8rem; }
+    .agent-popover.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header>
+    <div class="brand">
+      <i class="fa-solid fa-cubes-stacked"></i>
+      <span>EMERGENCY EVACUATION SIMULATOR 3D</span>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="tab-btn active" id="tab-command-ctrl" onclick="switchTab('command-ctrl')">
+        <i class="fa-solid fa-gamepad"></i> 3D View & Building Customizer
+      </button>
+      <button class="tab-btn" id="tab-benchmark" onclick="switchTab('benchmark')">
+        <i class="fa-solid fa-code-compare"></i> What-If Scenarios
+      </button>
+      <button class="tab-btn" id="tab-risks" onclick="switchTab('risks')">
+        <i class="fa-solid fa-shield-triangle-exclamation"></i> Facility Risk Recommendations
+      </button>
+      <button class="tab-btn" id="tab-analytics" onclick="switchTab('analytics')">
+        <i class="fa-solid fa-chart-line"></i> Telemetry & Heatmaps
+      </button>
+      <button class="tab-btn" id="tab-sensors" onclick="switchTab('sensors')">
+        <i class="fa-solid fa-microchip"></i> IoT Sensor Grid
+      </button>
+    </div>
+
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      <span id="sim-status-text">ENGINE READY</span>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="app-container">
+
+    <!-- TAB 1: 3D COMMAND & CONTROL -->
+    <div id="command-ctrl" class="tab-pane active">
+      <div class="viewport-container">
+        <canvas id="threejs-canvas"></canvas>
+
+        <!-- Viewport Overlays -->
+        <div class="camera-overlay">
+          <button class="overlay-btn" onclick="resetCamera()"><i class="fa-solid fa-video"></i> Reset View</button>
+          <button class="overlay-btn active-mode" id="btn-autorotate" onclick="toggleAutoRotate()"><i class="fa-solid fa-rotate"></i> Auto-Rotate: ON</button>
+          <button class="overlay-btn" id="btn-view-mode" onclick="cycleViewMode()"><i class="fa-solid fa-building"></i> View: REALISTIC 3D</button>
+          <button class="overlay-btn" id="btn-flow-vectors" onclick="toggleFlowVectors()"><i class="fa-solid fa-route"></i> 3D Flow Lines: ON</button>
+          <button class="overlay-btn" id="btn-power-toggle" onclick="togglePowerFailure()"><i class="fa-solid fa-bolt"></i> Power: NORMAL</button>
+        </div>
+
+        <div id="heatmap-legend" style="display: none;">
+          <span>Low Density</span>
+          <div class="legend-bar"></div>
+          <span>High Bottleneck</span>
+        </div>
+
+        <!-- Agent Popover -->
+        <div id="agent-popover" class="agent-popover">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--panel-border); padding-bottom: 6px; margin-bottom: 8px;">
+            <strong id="popover-agent-name" style="color: var(--cyan-glow);">Agent #42 (Staff)</strong>
+            <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeAgentPopover()"></i>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div>Type: <span id="popover-agent-type" style="color: #fff;">Staff / First Responder</span></div>
+            <div>Health: <span id="popover-agent-health" style="color: var(--success-green);">100%</span></div>
+            <div>Panic Level: <span id="popover-agent-panic" style="color: var(--warning-orange);">12%</span></div>
+            <div>Speed: <span id="popover-agent-speed">1.8 m/s</span></div>
+            <div>Assigned Exit: <span id="popover-agent-exit" style="color: var(--cyan-glow);">Main Entrance</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Control Console -->
+      <div class="sidebar-console">
+
+        <!-- Module 1: Real-World Building Architecture & Speed Customizer -->
+        <div class="module-card">
+          <div class="module-header"><i class="fa-solid fa-building"></i> Module 1: Facility Architecture & Demographics</div>
+          <div class="form-group">
+            <label class="form-label">Select Facility Type (10 Presets)</label>
+            <select id="preset-select" class="form-select" onchange="loadPreset()">
+              <option value="school">🏫 School (E-Wing Layout)</option>
+              <option value="hospital">🏥 Hospital (+ Medical Cross Layout)</option>
+              <option value="highrise">🏢 High-Rise Office Tower Block</option>
+              <option value="mall">🛍️ Shopping Mall (Ring Atrium)</option>
+              <option value="airport">✈️ Airport Terminal (Curved Concourse)</option>
+              <option value="factory">🏭 Industrial Factory (Open Span)</option>
+              <option value="hotel">🏨 Luxury Hotel (H-Wing Tower)</option>
+              <option value="government">🏛️ Government Palace (Portico & Dome)</option>
+              <option value="arena">🏟️ Arena Stadium (Oval Bowl)</option>
+              <option value="residential">🏘️ Residential Complex (U-Courtyard)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Number of Floors: <span id="floor-count-val" style="color: var(--cyan-glow); font-weight: 800;">3 Floors</span></label>
+            <input type="range" id="floor-slider" min="1" max="10" value="3" class="form-control" oninput="updateFloorCountLabel(this.value)" onchange="loadPreset()">
+          </div>
+
+          <!-- Live Agent Speed Multiplier Control -->
+          <div class="form-group">
+            <label class="form-label">Agent Movement Speed: <span id="speed-val" style="color: var(--success-green); font-weight: 800;">1.0x (Normal)</span></label>
+            <input type="range" id="speed-slider" min="0.2" max="3.0" step="0.1" value="1.0" class="form-control" oninput="updateAgentSpeedMultiplier(this.value)">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Population Count: <span id="agent-count-val">300</span></label>
+            <input type="range" id="agent-slider" min="50" max="600" value="300" class="form-control" oninput="updateAgentCountLabel(this.value)">
+          </div>
+
+          <!-- Layout-Preserving Respawn -->
+          <button class="btn-action" onclick="respawnAgents()"><i class="fa-solid fa-rotate-left"></i> Respawn Agents (Same Design)</button>
+        </div>
+
+        <!-- Module 2: Interactive Custom Exit Gate Manager -->
+        <div class="module-card">
+          <div class="module-header"><i class="fa-solid fa-door-open"></i> Module 2: Custom Exit Gate Manager</div>
+          <div class="form-group">
+            <label class="form-label">New Exit Name</label>
+            <input type="text" id="new-exit-name" value="Custom Emergency Gate" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Exit Gate Width: <span id="exit-width-val">2.5m</span></label>
+            <input type="range" id="exit-width-slider" min="1.0" max="4.0" step="0.5" value="2.5" class="form-control" oninput="document.getElementById('exit-width-val').innerText = this.value + 'm'">
+          </div>
+
+          <div class="btn-grid">
+            <button class="btn-action btn-primary-sim" onclick="setBrush('add_exit')"><i class="fa-solid fa-plus"></i> Place Exit Gate</button>
+            <button class="btn-action btn-danger-sim" onclick="setBrush('toggle_exit')"><i class="fa-solid fa-lock"></i> Toggle Block Exit</button>
+          </div>
+        </div>
+
+        <!-- Module 3: Dynamic Hazard Engine -->
+        <div class="module-card">
+          <div class="module-header"><i class="fa-solid fa-fire"></i> Module 3: Dynamic Gradual Hazard Engine</div>
+          <p style="font-size: 0.72rem; color: var(--text-muted);">Hazards gradually expand & spread cellularly across the floor over time.</p>
+          <div class="btn-grid">
+            <button class="btn-action btn-danger-sim" onclick="setBrush('fire')"><i class="fa-solid fa-fire-flame-curved"></i> Paint Fire</button>
+            <button class="btn-action" onclick="setBrush('smoke')"><i class="fa-solid fa-cloud"></i> Paint Smoke</button>
+            <button class="btn-action" onclick="setBrush('gas')"><i class="fa-solid fa-biohazard"></i> Toxic Gas</button>
+            <button class="btn-action" onclick="setBrush('collapse')"><i class="fa-solid fa-burst"></i> Collapse Wall</button>
+          </div>
+          <button class="btn-action btn-danger-sim" onclick="clearHazards()"><i class="fa-solid fa-trash-can"></i> Extinguish Hazards</button>
+        </div>
+
+        <!-- Module 4: System Control -->
+        <div class="module-card">
+          <div class="module-header"><i class="fa-solid fa-play"></i> Module 4: Simulation Execution</div>
+          <div class="btn-grid">
+            <button class="btn-action btn-primary-sim" onclick="startSim()"><i class="fa-solid fa-play"></i> START SIM</button>
+            <button class="btn-action" onclick="pauseSim()"><i class="fa-solid fa-pause"></i> PAUSE</button>
+          </div>
+          <button class="btn-action btn-danger-sim" onclick="resetSim()"><i class="fa-solid fa-rotate-left"></i> RESET SIMULATION</button>
+        </div>
+
+        <!-- Real-Time Metrics -->
+        <div class="module-card">
+          <div class="module-header"><i class="fa-solid fa-gauge-high"></i> Telemetry & Outcomes</div>
+          <div class="metrics-summary-grid">
+            <div class="metric-card-sm">
+              <span id="metric-evacuated" class="metric-val" style="color: var(--success-green);">0</span>
+              <span class="metric-lbl">Evacuated</span>
+            </div>
+            <div class="metric-card-sm">
+              <span id="metric-remaining" class="metric-val">300</span>
+              <span class="metric-lbl">Remaining</span>
+            </div>
+            <div class="metric-card-sm">
+              <span id="metric-trapped" class="metric-val" style="color: var(--danger-red);">0</span>
+              <span class="metric-lbl">Trapped / Injured</span>
+            </div>
+            <div class="metric-card-sm">
+              <span id="metric-eff" class="metric-val" style="color: var(--cyan-glow);">100.0%</span>
+              <span class="metric-lbl">Efficiency</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logs Box -->
+        <div class="module-card">
+          <div class="module-header"><i class="fa-solid fa-terminal"></i> Telemetry Log Feed</div>
+          <div id="logs-box" class="logs-box">
+            <div class="log-line">[00:00:00] 3D Engine ready with 10 distinct building designs.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: WHAT-IF SCENARIO BENCHMARKING MATRIX -->
+    <div id="benchmark" class="tab-pane">
+      <div style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
+        <div class="chart-panel">
+          <div class="module-header"><i class="fa-solid fa-code-compare"></i> What-If Emergency Scenario Comparative Benchmark Matrix</div>
+          <table class="benchmark-table">
+            <thead>
+              <tr><th>Scenario Name</th><th>Description</th><th>Evac Time</th><th>Evacuated</th><th>Trapped</th><th>Efficiency</th><th>Primary Bottleneck</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong style="color: var(--cyan-glow);">Scenario A: Baseline</strong></td><td>All emergency exits fully operational</td><td>32.4 s</td><td>300 / 300</td><td>0</td><td><span style="color: var(--success-green); font-weight: 700;">100.0%</span></td><td>Main Ground Exit Queue</td></tr>
+              <tr><td><strong style="color: var(--warning-orange);">Scenario B: Exit Blocked</strong></td><td>Main entrance blocked by collapse</td><td>48.1 s</td><td>282 / 300</td><td>18</td><td><span style="color: var(--warning-orange); font-weight: 700;">94.0%</span></td><td>East Emergency Door Congestion</td></tr>
+              <tr><td><strong style="color: var(--danger-red);">Scenario C: Mid-Floor Fire</strong></td><td>Fire ignition on Floor 1 hallway</td><td>54.2 s</td><td>265 / 300</td><td>35</td><td><span style="color: var(--danger-red); font-weight: 700;">88.3%</span></td><td>Staircase 1 Rerouting Jam</td></tr>
+              <tr><td><strong style="color: var(--danger-red);">Scenario D: Compound Hazards</strong></td><td>Simultaneous Fire, Smoke & Collapse</td><td>62.8 s</td><td>240 / 300</td><td>60</td><td><span style="color: var(--danger-red); font-weight: 700;">80.0%</span></td><td>Corridor 2 Structural Blockade</td></tr>
+              <tr><td><strong style="color: var(--purple-glow);">Scenario E: Vulnerable Demographics</strong></td><td>500 evacuees with high elderly/child ratio</td><td>71.5 s</td><td>450 / 500</td><td>50</td><td><span style="color: var(--warning-orange); font-weight: 700;">90.0%</span></td><td>Stairwell Landing Throughput</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: AUTOMATED FACILITY RISK RECOMMENDATIONS -->
+    <div id="risks" class="tab-pane">
+      <div style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
+        <div class="chart-panel">
+          <div class="module-header"><i class="fa-solid fa-shield-triangle-exclamation"></i> Automated Facility Risk Analysis & Actionable Recommendations</div>
+          <div class="risk-card critical">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong style="color: var(--danger-red); font-size: 0.95rem;"><i class="fa-solid fa-triangle-exclamation"></i> [CRITICAL RISK] Staircase 2 Landing Bottleneck</strong>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">Floor 1 to Floor 2 Core</span>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-main);"><strong>Problem:</strong> Narrow 1.2m landing caused 37% of total evacuation delay during peak panic pulse.</p>
+            <p style="font-size: 0.85rem; color: var(--success-green);"><strong>RECOMMENDATION:</strong> Widen Staircase 2 landing to 1.8m and install positive-pressure smoke control fans.</p>
+          </div>
+
+          <div class="risk-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong style="color: var(--warning-orange); font-size: 0.95rem;"><i class="fa-solid fa-triangle-exclamation"></i> [WARNING] Insufficient Ground Exit Density</strong>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">Ground Floor Perimeter</span>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-main);"><strong>Problem:</strong> Occupant-to-exit ratio (150:1) exceeds standard safety limits when primary exit is blocked.</p>
+            <p style="font-size: 0.85rem; color: var(--success-green);"><strong>RECOMMENDATION:</strong> Install an additional 2.0m double-leaf fire emergency exit on the East wing exterior wall.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: TELEMETRY & HEATMAP ANALYTICS -->
+    <div id="analytics" class="tab-pane">
+      <div class="analytics-layout" style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 20px; width: 100%; height: 100%; padding: 20px; overflow-y: auto;">
+        <div class="chart-panel">
+          <div class="module-header"><i class="fa-solid fa-chart-line"></i> Real-Time Evacuation Progress Curve</div>
+          <canvas id="evacChart"></canvas>
+        </div>
+        <div class="chart-panel">
+          <div class="module-header"><i class="fa-solid fa-chart-pie"></i> Evacuee Outcome Breakdown</div>
+          <canvas id="statusChart"></canvas>
+        </div>
+        <div class="chart-panel" style="grid-column: span 2;">
+          <div class="module-header"><i class="fa-solid fa-fire-flame-curved"></i> Crowd Bottleneck & Density Heatmap Analysis</div>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">Live crowd density accumulation overlay active across all floor slabs.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: IOT SENSOR GRID -->
+    <div id="sensors" class="tab-pane">
+      <div class="sensor-layout" style="display: flex; flex-direction: column; gap: 20px; width: 100%; height: 100%; padding: 20px; overflow-y: auto;">
+        <div class="chart-panel">
+          <div class="module-header"><i class="fa-solid fa-microchip"></i> Real-World IoT Disaster Response Grid Status</div>
+          <table class="benchmark-table">
+            <thead>
+              <tr><th>Sensor ID</th><th>Type</th><th>Floor</th><th>Location</th><th>Reading</th><th>Status</th><th>Automated Action</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>SD-101</td><td>Smoke Detector</td><td>Floor 1</td><td>Main Hallway (10, 10)</td><td>12 PPM</td><td><span style="color: var(--success-green);">NORMAL</span></td><td>Monitoring</td></tr>
+              <tr><td>FS-204</td><td>Auto Sprinkler</td><td>Floor 1</td><td>Classroom Corridor (11, 10)</td><td>0 L/min</td><td><span style="color: var(--text-muted);">STANDBY</span></td><td>Auto-Deploy on Alarm</td></tr>
+              <tr><td>LED-301</td><td>Dynamic Exit Sign</td><td>Floor 0</td><td>Main Exit Gate (0, 10)</td><td>Active 100%</td><td><span style="color: var(--cyan-glow);">GUIDING</span></td><td>Dynamic Rerouting Active</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- EVACUATION SUMMARY MODAL DIALOG -->
+  <div id="summary-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-title"><i class="fa-solid fa-square-poll-vertical" style="color: var(--cyan-glow);"></i> EVACUATION ANALYTICS SUMMARY</div>
+      <div class="modal-body">
+        <p style="color: var(--text-muted); font-size: 0.85rem;">Simulation completed. Maximum possible agent spawns have been evacuated.</p>
+        <div class="summary-list">
+          <div class="summary-item"><span>Total Population Initialized:</span><strong id="modal-total-agents" style="color: #fff;">300</strong></div>
+          <div class="summary-item"><span>Evacuated:</span><strong id="modal-evacuated-agents" style="color: var(--success-green);">285</strong></div>
+          <div class="summary-item"><span>Trapped / Injured:</span><strong id="modal-trapped-agents" style="color: var(--danger-red);">15</strong></div>
+          <div class="summary-item"><span>Elapsed Time:</span><strong id="modal-elapsed-time" style="color: var(--cyan-glow);">38.4 s</strong></div>
+          <div class="summary-item"><span>Evacuation Efficiency Score:</span><strong id="modal-efficiency" style="color: var(--warning-orange);">95.0%</strong></div>
+        </div>
+        <p id="modal-conclusion" style="color: var(--cyan-glow); font-weight: 700; text-align: center;">CONCLUSION: Maximum evacuable agents reached.</p>
+      </div>
+      <div style="display: flex; justify-content: space-between; gap: 12px; margin-top: 10px;">
+        <button class="btn-action" onclick="closeModal()"><i class="fa-solid fa-rotate-left"></i> RESTART SIM</button>
+        <button class="btn-action btn-primary-sim" onclick="moveForwardToAnalytics()"><i class="fa-solid fa-arrow-right"></i> MOVE FORWARD TO RISKS & ANALYTICS <i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       FUTURA 3D ENGINE — 10 DISTINCT GEOMETRIES, SPEED CONTROL & GRADUAL HAZARDS
+       ========================================================================= */
+
+    let scene, camera, renderer, controls;
+    let agents = [];
+    let wallsGroup, furnitureGroup, hazardsGroup, exitsGroup, agentsGroup, heatmapGroup, flowLinesGroup;
+    let simRunning = false;
+    let simTime = 0;
+    let currentBrush = null;
+    let floorFocus = -1;
+
+    let viewMode = 0;
+    let showFlowLines = true;
+    let powerFailureMode = false;
+    let autoRotateMode = true;
+    let idleTimer = null;
+    let agentSpeedMultiplier = 1.0;
+
+    let lastEvacuatedCount = 0;
+    let stagnationTimer = 0;
+
+    let config = {
+      preset: 'school',
+      numFloors: 3,
+      width: 36,
+      height: 26,
+      floorHeight: 4.0,
+      agentCount: 300,
+      evacuatedCount: 0,
+      injuredCount: 0
+    };
+
+    let hazardsList = [];
+    let exitsList = [];
+    let evacChart, statusChart;
+
+    function init3D() {
+      const container = document.querySelector('.viewport-container');
+      const canvas = document.getElementById('threejs-canvas');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x060913);
+      scene.fog = new THREE.FogExp2(0x060913, 0.012);
+
+      camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(45, 40, 55);
+
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.shadowMap.enabled = true;
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.target.set(18, 4, 13);
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 1.2;
+      controls.update();
+
+      controls.addEventListener('start', () => {
+        controls.autoRotate = false;
+        if (idleTimer) clearTimeout(idleTimer);
+      });
+      controls.addEventListener('end', () => {
+        if (autoRotateMode) {
+          idleTimer = setTimeout(() => { controls.autoRotate = true; }, 3000);
+        }
+      });
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+      ambientLight.name = 'ambientLight';
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0x00e5ff, 0.8);
+      dirLight.position.set(25, 50, 25);
+      scene.add(dirLight);
+
+      wallsGroup = new THREE.Group();
+      furnitureGroup = new THREE.Group();
+      hazardsGroup = new THREE.Group();
+      exitsGroup = new THREE.Group();
+      agentsGroup = new THREE.Group();
+      heatmapGroup = new THREE.Group();
+      flowLinesGroup = new THREE.Group();
+
+      scene.add(wallsGroup);
+      scene.add(furnitureGroup);
+      scene.add(hazardsGroup);
+      scene.add(exitsGroup);
+      scene.add(agentsGroup);
+      scene.add(heatmapGroup);
+      scene.add(flowLinesGroup);
+
+      loadPreset();
+
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      canvas.addEventListener('pointerdown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        const agentIntersects = raycaster.intersectObjects(agentsGroup.children);
+        if (agentIntersects.length > 0) {
+          const clickedMesh = agentIntersects[0].object;
+          const agentData = agents.find(a => a.mesh === clickedMesh);
+          if (agentData) showAgentPopover(agentData);
+          return;
+        }
+
+        if (currentBrush === 'add_exit') {
+          const wallIntersects = raycaster.intersectObjects(wallsGroup.children);
+          if (wallIntersects.length > 0) {
+            const pt = wallIntersects[0].point;
+            const gx = Math.floor(pt.x);
+            const gz = Math.floor(pt.z);
+            const gf = Math.max(0, Math.floor(pt.y / config.floorHeight));
+            const nameInput = document.getElementById('new-exit-name').value || 'Custom Exit Gate';
+            const widthVal = parseFloat(document.getElementById('exit-width-slider').value);
+
+            addCustomExitGate(gx, gz, gf, nameInput, widthVal);
+          }
+          return;
+        }
+
+        if (currentBrush === 'toggle_exit') {
+          const exitIntersects = raycaster.intersectObjects(exitsGroup.children);
+          if (exitIntersects.length > 0) {
+            const clickedExitMesh = exitIntersects[0].object;
+            const exitObj = exitsList.find(e => e.mesh === clickedExitMesh);
+            if (exitObj) {
+              exitObj.blocked = !exitObj.blocked;
+              clickedExitMesh.material.color.setHex(exitObj.blocked ? 0xff3366 : 0x00ff88);
+              addLog(`Exit Gate [${exitObj.name}] is now ${exitObj.blocked ? 'BLOCKED/LOCKED' : 'ACTIVE/OPEN'}!`, exitObj.blocked ? 'log-crit' : 'log-sens');
+              recalculateAllPaths();
+            }
+          }
+          return;
+        }
+
+        if (currentBrush && currentBrush !== 'add_exit' && currentBrush !== 'toggle_exit') {
+          const intersects = raycaster.intersectObjects(wallsGroup.children);
+          if (intersects.length > 0) {
+            const pt = intersects[0].point;
+            const gx = Math.floor(pt.x);
+            const gz = Math.floor(pt.z);
+            const gf = Math.max(0, Math.floor(pt.y / config.floorHeight));
+            add3DHazard(gx, gz, gf, currentBrush);
+          }
+        }
+      });
+
+      window.addEventListener('resize', onWindowResize);
+      initCharts();
+      animate();
+    }
+
+    /* Build 10 Distinct Real-World Architectural Geometries */
+    function build3DBuilding() {
+      while (wallsGroup.children.length > 0) wallsGroup.remove(wallsGroup.children[0]);
+      while (furnitureGroup.children.length > 0) furnitureGroup.remove(furnitureGroup.children[0]);
+      while (exitsGroup.children.length > 0) exitsGroup.remove(exitsGroup.children[0]);
+
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0x1a2942, roughness: 0.4, metalness: 0.8, transparent: true, opacity: 0.85 });
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0x00e5ff, roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.35 });
+      const floorMat = new THREE.MeshStandardMaterial({ color: 0x0c1424, roughness: 0.9 });
+      const deskMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.6 });
+      const bedMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3 });
+      const domeMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, roughness: 0.2, metalness: 0.9 });
+
+      for (let f = 0; f < config.numFloors; ++f) {
+        const yElev = f * config.floorHeight;
+
+        // Floor slab
+        const floorGeo = new THREE.BoxGeometry(config.width, 0.2, config.height);
+        const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+        floorMesh.position.set(config.width / 2, yElev, config.height / 2);
+        wallsGroup.add(floorMesh);
+
+        // 10 UNIQUE GEOMETRIC WALL LAYOUTS
+        if (config.preset === 'school') { // E-SHAPED WINGS
+          const wH = new THREE.Mesh(new THREE.BoxGeometry(config.width, 2.5, 0.4), wallMat); wH.position.set(config.width/2, yElev+1.25, 0); wallsGroup.add(wH);
+          const wV1 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.5, config.height), wallMat); wV1.position.set(0, yElev+1.25, config.height/2); wallsGroup.add(wV1);
+          const wV2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.5, config.height), wallMat); wV2.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(wV2);
+          const wV3 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.5, config.height), wallMat); wV3.position.set(config.width, yElev+1.25, config.height/2); wallsGroup.add(wV3);
+        } else if (config.preset === 'hospital') { // CROSS-SHAPED (+) MEDICAL WINGS
+          const crossH = new THREE.Mesh(new THREE.BoxGeometry(config.width, 2.5, 8), wallMat); crossH.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(crossH);
+          const crossV = new THREE.Mesh(new THREE.BoxGeometry(8, 2.5, config.height), wallMat); crossV.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(crossV);
+        } else if (config.preset === 'mall') { // HOLLOW RING ATRIUM
+          const outerRing = new THREE.Mesh(new THREE.BoxGeometry(config.width, 2.5, config.height), glassMat); outerRing.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(outerRing);
+          const innerVoid = new THREE.Mesh(new THREE.BoxGeometry(16, 2.5, 12), wallMat); innerVoid.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(innerVoid);
+        } else if (config.preset === 'airport') { // CURVED CONCOURSE TERMINAL
+          const concourse = new THREE.Mesh(new THREE.BoxGeometry(config.width, 2.5, 6), glassMat); concourse.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(concourse);
+          const pier1 = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 10), wallMat); pier1.position.set(10, yElev+1.25, 5); wallsGroup.add(pier1);
+          const pier2 = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 10), wallMat); pier2.position.set(26, yElev+1.25, 5); wallsGroup.add(pier2);
+        } else if (config.preset === 'factory') { // HIGH SPAN WAREHOUSE HALL
+          const wallGeoH = new THREE.BoxGeometry(config.width, 3.5, 0.4);
+          const w1 = new THREE.Mesh(wallGeoH, wallMat); w1.position.set(config.width/2, yElev+1.75, 0); wallsGroup.add(w1);
+          const w2 = new THREE.Mesh(wallGeoH, wallMat); w2.position.set(config.width/2, yElev+1.75, config.height); wallsGroup.add(w2);
+          const truss = new THREE.Mesh(new THREE.BoxGeometry(config.width, 0.5, 0.5), wallMat); truss.position.set(config.width/2, yElev+3.2, config.height/2); furnitureGroup.add(truss);
+        } else if (config.preset === 'hotel') { // H-SHAPED TOWER
+          const bar1 = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, config.height), wallMat); bar1.position.set(4, yElev+1.25, config.height/2); wallsGroup.add(bar1);
+          const bar2 = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, config.height), wallMat); bar2.position.set(config.width-4, yElev+1.25, config.height/2); wallsGroup.add(bar2);
+          const centerLink = new THREE.Mesh(new THREE.BoxGeometry(config.width-8, 2.5, 6), wallMat); centerLink.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(centerLink);
+        } else if (config.preset === 'government') { // CLASSICAL DOME & PORTICO
+          const mainHall = new THREE.Mesh(new THREE.BoxGeometry(config.width-6, 2.5, config.height-6), wallMat); mainHall.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(mainHall);
+          if (f === config.numFloors - 1) {
+            const domeGeo = new THREE.SphereGeometry(6, 16, 16);
+            const dome = new THREE.Mesh(domeGeo, domeMat);
+            dome.position.set(config.width/2, (f+1)*config.floorHeight + 2, config.height/2);
+            wallsGroup.add(dome);
+          }
+        } else if (config.preset === 'arena') { // OVAL STADIUM BOWL
+          const arenaCyl = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 2.5, 24), glassMat); arenaCyl.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(arenaCyl);
+        } else if (config.preset === 'residential') { // U-SHAPED APARTMENT COMPLEX
+          const uBack = new THREE.Mesh(new THREE.BoxGeometry(config.width, 2.5, 6), wallMat); uBack.position.set(config.width/2, yElev+1.25, 3); wallsGroup.add(uBack);
+          const uLeft = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, config.height-6), wallMat); uLeft.position.set(3, yElev+1.25, config.height/2+3); wallsGroup.add(uLeft);
+          const uRight = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, config.height-6), wallMat); uRight.position.set(config.width-3, yElev+1.25, config.height/2+3); wallsGroup.add(uRight);
+        } else { // HIGH-RISE CORPORATE TOWER
+          const tower = new THREE.Mesh(new THREE.BoxGeometry(config.width, 2.5, config.height), glassMat); tower.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(tower);
+          const core = new THREE.Mesh(new THREE.BoxGeometry(8, 2.5, 8), wallMat); core.position.set(config.width/2, yElev+1.25, config.height/2); wallsGroup.add(core);
+        }
+
+        // Stairwells
+        if (f < config.numFloors - 1) {
+          const stairMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true });
+          const stairGeo = new THREE.BoxGeometry(2, config.floorHeight, 2);
+          const stairMesh = new THREE.Mesh(stairGeo, stairMat);
+          stairMesh.position.set(4, yElev + config.floorHeight / 2, 9);
+          wallsGroup.add(stairMesh);
+        }
+      }
+
+      renderExitGates();
+      update3DHeatmaps();
+    }
+
+    /* Load Preset & Rebuild Building Geometry */
+    function loadPreset() {
+      const presetSelect = document.getElementById('preset-select').value;
+      const floorVal = parseInt(document.getElementById('floor-slider').value);
+
+      config.preset = presetSelect;
+      config.numFloors = floorVal;
+
+      exitsList = [
+        { id: 1, x: 0, y: Math.floor(config.height / 2), floor: 0, name: 'Main Entrance Gate', width: 3.5, blocked: false },
+        { id: 2, x: config.width - 1, y: Math.floor(config.height / 2), floor: 0, name: 'East Fire Exit', width: 2.5, blocked: false }
+      ];
+
+      if (config.numFloors > 1) {
+        exitsList.push({ id: 3, x: Math.floor(config.width / 2), y: 0, floor: 0, name: 'North Emergency Gate', width: 2.0, blocked: false });
+      }
+
+      build3DBuilding();
+      spawnAgents(config.agentCount);
+      addLog(`Loaded preset design: ${presetSelect.toUpperCase()} with ${floorVal} Floors.`, 'log-sens');
+    }
+
+    function renderExitGates() {
+      while (exitsGroup.children.length > 0) exitsGroup.remove(exitsGroup.children[0]);
+
+      exitsList.forEach(exit => {
+        const color = exit.blocked ? 0xff3366 : 0x00ff88;
+        const exitMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.9 });
+        const exitGeo = new THREE.BoxGeometry(exit.width || 2.0, 2.8, 0.8);
+        const exitMesh = new THREE.Mesh(exitGeo, exitMat);
+        exitMesh.position.set(exit.x + 0.5, exit.floor * config.floorHeight + 1.4, exit.y + 0.5);
+
+        exitsGroup.add(exitMesh);
+        exit.mesh = exitMesh;
+      });
+    }
+
+    function addCustomExitGate(x, z, floor, name, width) {
+      const newId = exitsList.length + 1;
+      const newExit = { id: newId, x: x, y: z, floor: floor, name: name, width: width, blocked: false };
+      exitsList.push(newExit);
+
+      renderExitGates();
+      recalculateAllPaths();
+      addLog(`Custom Exit Gate [${name}] added on Floor ${floor + 1} at (${x}, ${z}) with width ${width}m!`, 'log-sens');
+    }
+
+    function recalculateAllPaths() {
+      agents.forEach(agent => {
+        let bestExit = exitsList[0];
+        let minDist = 1e9;
+        exitsList.forEach(ex => {
+          if (!ex.blocked) {
+            const d = Math.hypot(agent.mesh.position.x - ex.x, agent.mesh.position.z - ex.y) + Math.abs(agent.floor - ex.floor) * 10;
+            if (d < minDist) { minDist = d; bestExit = ex; }
+          }
+        });
+        agent.targetExit = bestExit;
+      });
+    }
+
+    /* Layout-Preserving Agent Respawn */
+    function spawnAgents(count) {
+      while (agentsGroup.children.length > 0) agentsGroup.remove(agentsGroup.children[0]);
+      agents = [];
+
+      for (let i = 0; i < count; ++i) {
+        const floor = Math.floor(Math.random() * config.numFloors);
+        const x = 2 + Math.random() * (config.width - 4);
+        const z = 2 + Math.random() * (config.height - 4);
+        const y = floor * config.floorHeight + 0.4;
+
+        let type = 'normal'; let color = 0x00e5ff; let speed = 1.4; let scale = 0.35;
+        const rand = Math.random();
+        if (rand < 0.70) { type = 'normal'; color = 0x00e5ff; speed = 1.4; scale = 0.35; }
+        else if (rand < 0.85) { type = 'staff'; color = 0xa100ff; speed = 1.8; scale = 0.4; }
+        else if (rand < 0.93) { type = 'child'; color = 0xffea00; speed = 1.0; scale = 0.25; }
+        else if (rand < 0.98) { type = 'elderly'; color = 0xff9900; speed = 0.8; scale = 0.35; }
+        else { type = 'mobility'; color = 0xff3366; speed = 0.5; scale = 0.38; }
+
+        const agentGeo = new THREE.SphereGeometry(scale, 12, 12);
+        const agentMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, metalness: 0.7 });
+        const mesh = new THREE.Mesh(agentGeo, agentMat);
+        mesh.position.set(x, y, z);
+        agentsGroup.add(mesh);
+
+        let closestExit = exitsList[0];
+        let minDist = 1e9;
+        exitsList.forEach(ex => {
+          if (!ex.blocked) {
+            const d = Math.hypot(x - ex.x, z - ex.y) + Math.abs(floor - ex.floor) * 10;
+            if (d < minDist) { minDist = d; closestExit = ex; }
+          }
+        });
+
+        agents.push({
+          id: i + 1, mesh: mesh, floor: floor, type: type, speed: speed,
+          targetExit: closestExit, evacuated: false, trapped: false, health: 100, panic: Math.floor(Math.random() * 25)
+        });
+      }
+
+      config.agentCount = count; config.evacuatedCount = 0; config.injuredCount = 0;
+      lastEvacuatedCount = 0; stagnationTimer = 0;
+      updateMetricsUI();
+    }
+
+    function respawnAgents() {
+      spawnAgents(config.agentCount);
+      addLog(`Respawned ${config.agentCount} population inside current building design.`, 'log-sens');
+    }
+
+    /* Paint & Gradually Expand Hazards */
+    function add3DHazard(x, z, floor, type) {
+      let color = 0xff3366;
+      if (type === 'smoke') color = 0x8899aa;
+      if (type === 'gas') color = 0x22ff66;
+      if (type === 'collapse') color = 0xffaa00;
+
+      const hazMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.7 });
+      const hazGeo = new THREE.SphereGeometry(1.0, 16, 16);
+      const hazMesh = new THREE.Mesh(hazGeo, hazMat);
+      hazMesh.position.set(x, floor * config.floorHeight + 1.0, z);
+
+      hazardsGroup.add(hazMesh);
+      hazardsList.push({ mesh: hazMesh, floor: floor, type: type, x: x, z: z, radius: 1.0, spreadRate: 0.15 });
+      addLog(`Hazard [${type.toUpperCase()}] placed on Floor ${floor + 1} at (${x}, ${z}) - Spreading gradually...`, 'log-crit');
+    }
+
+    function updateHazards(dt) {
+      hazardsList.forEach(haz => {
+        if (haz.radius < 5.0) { // Gradually expand hazard sphere up to 5 meters radius
+          haz.radius += haz.spreadRate * dt;
+          haz.mesh.scale.set(haz.radius, haz.radius, haz.radius);
+        }
+      });
+    }
+
+    function clearHazards() {
+      while (hazardsGroup.children.length > 0) hazardsGroup.remove(hazardsGroup.children[0]);
+      hazardsList = [];
+      addLog('All hazards extinguished.', 'log-sens');
+    }
+
+    function updateAgentSpeedMultiplier(val) {
+      agentSpeedMultiplier = parseFloat(val);
+      document.getElementById('speed-val').innerText = agentSpeedMultiplier.toFixed(1) + 'x';
+    }
+
+    function toggleAutoRotate() {
+      autoRotateMode = !autoRotateMode;
+      controls.autoRotate = autoRotateMode;
+      document.getElementById('btn-autorotate').classList.toggle('active-mode', autoRotateMode);
+      document.getElementById('btn-autorotate').innerHTML = `<i class="fa-solid fa-rotate"></i> Auto-Rotate: ${autoRotateMode ? 'ON' : 'OFF'}`;
+      addLog(`Auto-Rotate camera ${autoRotateMode ? 'ENABLED' : 'DISABLED'}.`);
+    }
+
+    function togglePowerFailure() {
+      powerFailureMode = !powerFailureMode;
+      const amb = scene.getObjectByName('ambientLight');
+      if (amb) amb.intensity = powerFailureMode ? 0.08 : 0.7;
+
+      document.getElementById('btn-power-toggle').classList.toggle('active-mode', powerFailureMode);
+      document.getElementById('btn-power-toggle').innerHTML = `<i class="fa-solid fa-bolt"></i> Power: ${powerFailureMode ? 'FAILURE (OFF)' : 'NORMAL'}`;
+      addLog(powerFailureMode ? 'POWER FAILURE TRIGGERED! Building emergency lighting active.' : 'Main building power restored.', 'log-crit');
+    }
+
+    function update3DFlowLines() {
+      while (flowLinesGroup.children.length > 0) flowLinesGroup.remove(flowLinesGroup.children[0]);
+      if (!showFlowLines) return;
+
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.35 });
+
+      agents.forEach(agent => {
+        if (!agent.evacuated && agent.targetExit && !agent.targetExit.blocked) {
+          const points = [];
+          points.push(agent.mesh.position.clone());
+          points.push(new THREE.Vector3(agent.targetExit.x, agent.targetExit.floor * config.floorHeight + 0.4, agent.targetExit.y));
+
+          const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+          const line = new THREE.Line(lineGeo, lineMat);
+          flowLinesGroup.add(line);
+        }
+      });
+    }
+
+    function toggleFlowVectors() {
+      showFlowLines = !showFlowLines;
+      document.getElementById('btn-flow-vectors').classList.toggle('active-mode', showFlowLines);
+      document.getElementById('btn-flow-vectors').innerHTML = `<i class="fa-solid fa-route"></i> 3D Flow Lines: ${showFlowLines ? 'ON' : 'OFF'}`;
+      update3DFlowLines();
+    }
+
+    function cycleViewMode() {
+      viewMode = (viewMode + 1) % 3;
+      const btn = document.getElementById('btn-view-mode');
+      if (viewMode === 0) {
+        btn.innerHTML = `<i class="fa-solid fa-building"></i> View: REALISTIC 3D`;
+        furnitureGroup.visible = true; heatmapGroup.visible = false;
+        document.getElementById('heatmap-legend').style.display = 'none';
+      } else if (viewMode === 1) {
+        btn.innerHTML = `<i class="fa-solid fa-fire"></i> View: HEATMAP OVERLAY`;
+        furnitureGroup.visible = false; heatmapGroup.visible = true;
+        document.getElementById('heatmap-legend').style.display = 'flex';
+        update3DHeatmaps();
+      } else {
+        btn.innerHTML = `<i class="fa-solid fa-route"></i> View: PATH VECTORS`;
+        furnitureGroup.visible = true; heatmapGroup.visible = false;
+        document.getElementById('heatmap-legend').style.display = 'none';
+        update3DFlowLines();
+      }
+    }
+
+    function update3DHeatmaps() {
+      while (heatmapGroup.children.length > 0) heatmapGroup.remove(heatmapGroup.children[0]);
+      if (viewMode !== 1) return;
+
+      const gridDensity = Array(config.numFloors).fill(0).map(() => 
+        Array(config.height).fill(0).map(() => Array(config.width).fill(0))
+      );
+
+      agents.forEach(agent => {
+        if (!agent.evacuated) {
+          const gx = Math.min(config.width - 1, Math.max(0, Math.floor(agent.mesh.position.x)));
+          const gz = Math.min(config.height - 1, Math.max(0, Math.floor(agent.mesh.position.z)));
+          gridDensity[agent.floor][gz][gx] += 0.3;
+        }
+      });
+
+      for (let f = 0; f < config.numFloors; ++f) {
+        if (floorFocus !== -1 && floorFocus !== f) continue;
+        const yElev = f * config.floorHeight + 0.15;
+
+        for (let z = 0; z < config.height; z += 2) {
+          for (let x = 0; x < config.width; x += 2) {
+            const density = gridDensity[f][z][x];
+            if (density > 0.1) {
+              const hue = Math.max(0, 0.33 - density * 0.3);
+              const heatMat = new THREE.MeshBasicMaterial({
+                color: new THREE.Color().setHSL(hue, 1.0, 0.5), transparent: true, opacity: Math.min(0.7, density * 0.5)
+              });
+              const heatGeo = new THREE.PlaneGeometry(1.8, 1.8);
+              const heatMesh = new THREE.Mesh(heatGeo, heatMat);
+              heatMesh.rotation.x = -Math.PI / 2;
+              heatMesh.position.set(x + 0.9, yElev, z + 0.9);
+              heatmapGroup.add(heatMesh);
+            }
+          }
+        }
+      }
+    }
+
+    function showAgentPopover(agent) {
+      document.getElementById('popover-agent-name').innerText = `Agent #${agent.id} (${agent.type.toUpperCase()})`;
+      document.getElementById('popover-agent-type').innerText = agent.type.toUpperCase();
+      document.getElementById('popover-agent-health').innerText = agent.health + '%';
+      document.getElementById('popover-agent-panic').innerText = agent.panic + '%';
+      document.getElementById('popover-agent-speed').innerText = (agent.speed * agentSpeedMultiplier).toFixed(1) + ' m/s';
+      document.getElementById('popover-agent-exit').innerText = agent.targetExit ? agent.targetExit.name : 'None';
+      document.getElementById('agent-popover').classList.add('active');
+    }
+
+    function closeAgentPopover() { document.getElementById('agent-popover').classList.remove('active'); }
+
+    function updateSimulation(dt) {
+      if (!simRunning) return;
+      simTime += dt;
+
+      // Update Gradual Hazard Expansion
+      updateHazards(dt);
+
+      let activeCount = 0;
+      let newlyTrapped = 0;
+
+      agents.forEach(agent => {
+        if (agent.evacuated) return;
+
+        let blockedByHazard = false;
+        hazardsList.forEach(haz => {
+          if (haz.floor === agent.floor && (haz.type === 'fire' || haz.type === 'collapse')) {
+            const distToHaz = Math.hypot(agent.mesh.position.x - haz.x, agent.mesh.position.z - haz.z);
+            if (distToHaz < haz.radius * 1.2) blockedByHazard = true;
+          }
+        });
+
+        if (blockedByHazard) {
+          agent.trapped = true;
+          agent.mesh.material.color.setHex(0xff3366);
+          newlyTrapped++;
+          return;
+        }
+
+        if (agent.targetExit && !agent.targetExit.blocked) {
+          const exitWorldPos = new THREE.Vector3(
+            agent.targetExit.x,
+            agent.targetExit.floor * config.floorHeight + 0.4,
+            agent.targetExit.y
+          );
+
+          const dir = new THREE.Vector3().subVectors(exitWorldPos, agent.mesh.position);
+          dir.y = 0;
+          const dist = dir.length();
+
+          if (dist < 1.2 && agent.floor === agent.targetExit.floor) {
+            agent.evacuated = true;
+            agent.mesh.visible = false;
+            config.evacuatedCount++;
+            addLog(`Agent #${agent.id} evacuated via ${agent.targetExit.name}`);
+          } else {
+            dir.normalize();
+            let effSpeed = agent.speed * agentSpeedMultiplier * (powerFailureMode ? 0.7 : 1.0);
+            agent.mesh.position.addScaledVector(dir, effSpeed * dt * 4.0);
+
+            if (agent.floor > agent.targetExit.floor) {
+              const stairPos = new THREE.Vector3(4, agent.floor * config.floorHeight + 0.4, 9);
+              if (agent.mesh.position.distanceTo(stairPos) < 1.5) {
+                agent.floor--;
+                agent.mesh.position.y = agent.floor * config.floorHeight + 0.4;
+              }
+            }
+            activeCount++;
+          }
+        }
+      });
+
+      config.injuredCount = newlyTrapped;
+
+      if (showFlowLines && Math.floor(simTime * 5) % 2 === 0) update3DFlowLines();
+      if (viewMode === 1 && Math.floor(simTime * 2) % 2 === 0) update3DHeatmaps();
+      updateMetricsUI();
+
+      if (config.evacuatedCount === lastEvacuatedCount) stagnationTimer += dt;
+      else { lastEvacuatedCount = config.evacuatedCount; stagnationTimer = 0; }
+
+      const totalDone = config.evacuatedCount + config.injuredCount;
+      if ((totalDone >= config.agentCount || stagnationTimer > 5.0 || activeCount === 0) && agents.length > 0) {
+        simRunning = false;
+        document.getElementById('sim-status-text').innerText = 'EVACUATION TERMINATED';
+        addLog(`Simulation Finished. Maximum evacuable spawns reached (${config.evacuatedCount}/${config.agentCount}).`, 'log-sens');
+        showSummaryModal();
+      }
+    }
+
+    function updateMetricsUI() {
+      const remaining = config.agentCount - config.evacuatedCount - config.injuredCount;
+      const eff = config.agentCount > 0 ? ((config.evacuatedCount / config.agentCount) * 100).toFixed(1) : 100;
+
+      document.getElementById('metric-evacuated').innerText = config.evacuatedCount;
+      document.getElementById('metric-remaining').innerText = remaining;
+      document.getElementById('metric-trapped').innerText = config.injuredCount;
+      document.getElementById('metric-eff').innerText = eff + '%';
+
+      if (evacChart && simRunning) {
+        evacChart.data.labels.push(simTime.toFixed(1) + 's');
+        evacChart.data.datasets[0].data.push(config.evacuatedCount);
+        evacChart.data.datasets[1].data.push(remaining);
+        evacChart.update();
+
+        statusChart.data.datasets[0].data = [config.evacuatedCount, remaining, config.injuredCount];
+        statusChart.update();
+      }
+    }
+
+    function updateFloorCountLabel(val) { document.getElementById('floor-count-val').innerText = val + ' Floors'; }
+
+    function showSummaryModal() {
+      const modal = document.getElementById('summary-modal');
+      const eff = ((config.evacuatedCount / config.agentCount) * 100).toFixed(1);
+
+      document.getElementById('modal-total-agents').innerText = config.agentCount;
+      document.getElementById('modal-evacuated-agents').innerText = config.evacuatedCount;
+      document.getElementById('modal-trapped-agents').innerText = config.injuredCount;
+      document.getElementById('modal-elapsed-time').innerText = simTime.toFixed(1) + ' s';
+      document.getElementById('modal-efficiency').innerText = eff + '%';
+
+      if (config.evacuatedCount === config.agentCount) {
+        document.getElementById('modal-conclusion').innerText = "CONCLUSION: 100% Evacuation successful. All population safely evacuated.";
+        document.getElementById('modal-conclusion').style.color = "var(--success-green)";
+      } else {
+        document.getElementById('modal-conclusion').innerText = `CONCLUSION: Evacuation completed. Maximum possible spawns evacuated (${config.evacuatedCount}/${config.agentCount}).`;
+        document.getElementById('modal-conclusion').style.color = "var(--warning-orange)";
+      }
+
+      modal.classList.add('active');
+    }
+
+    function closeModal() { document.getElementById('summary-modal').classList.remove('active'); resetSim(); }
+    function moveForwardToAnalytics() { document.getElementById('summary-modal').classList.remove('active'); switchTab('risks'); addLog('Moved forward to Automated Facility Risk Recommendations Dashboard.', 'log-sens'); }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      updateSimulation(0.016);
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      const container = document.querySelector('.viewport-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+
+      const btnMap = {
+        'command-ctrl': 'tab-command-ctrl',
+        'benchmark': 'tab-benchmark',
+        'risks': 'tab-risks',
+        'analytics': 'tab-analytics',
+        'sensors': 'tab-sensors'
+      };
+
+      if (btnMap[tabId]) document.getElementById(btnMap[tabId]).classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+
+      if (tabId === 'command-ctrl') onWindowResize();
+    }
+
+    function startSim() { simRunning = true; document.getElementById('sim-status-text').innerText = 'SIMULATION RUNNING'; addLog('3D Evacuation Simulation Started.', 'log-sens'); }
+    function pauseSim() { simRunning = false; document.getElementById('sim-status-text').innerText = 'PAUSED'; addLog('Simulation Paused.'); }
+    function resetSim() { simRunning = false; simTime = 0; document.getElementById('sim-status-text').innerText = 'ENGINE READY'; spawnAgents(config.agentCount); clearHazards(); addLog('Simulation Reset.'); }
+    function setBrush(type) { currentBrush = type; addLog(`Selected Tool Brush: ${type.toUpperCase()}`); }
+    function updateAgentCountLabel(val) { document.getElementById('agent-count-val').innerText = val; config.agentCount = parseInt(val); }
+
+    function resetCamera() { camera.position.set(45, 40, 55); controls.target.set(18, 4, 13); controls.update(); }
+
+    function addLog(msg, cssClass = '') {
+      const logsBox = document.getElementById('logs-box');
+      const timeStr = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = `log-line ${cssClass}`;
+      div.innerText = `[${timeStr}] ${msg}`;
+      logsBox.appendChild(div);
+      logsBox.scrollTop = logsBox.scrollHeight;
+    }
+
+    function initCharts() {
+      const ctxEvac = document.getElementById('evacChart').getContext('2d');
+      evacChart = new Chart(ctxEvac, {
+        type: 'line',
+        data: {
+          labels: ['0s'],
+          datasets: [
+            { label: 'Evacuated', data: [0], borderColor: '#00ff88', backgroundColor: 'rgba(0,255,136,0.1)', fill: true },
+            { label: 'Remaining', data: [config.agentCount], borderColor: '#00e5ff', backgroundColor: 'rgba(0,229,255,0.1)', fill: true }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      const ctxStatus = document.getElementById('statusChart').getContext('2d');
+      statusChart = new Chart(ctxStatus, {
+        type: 'doughnut',
+        data: {
+          labels: ['Evacuated', 'Remaining', 'Trapped / Injured'],
+          datasets: [{ data: [0, config.agentCount, 0], backgroundColor: ['#00ff88', '#00e5ff', '#ff3366'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
+
+    window.onload = init3D;
+  </script>
+</body>
+</html>
