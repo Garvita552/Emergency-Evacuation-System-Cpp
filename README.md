@@ -1,34 +1,34 @@
 # Emergency Evacuation System
 
-A modern C++ emergency evacuation simulation and analytics system designed for multi-floor building evacuation, hazard simulation, pathfinding, IoT sensor monitoring, and evacuation analysis.
-
-
----
-
-## 🌟 Overview
-**FUTURA 3D E-VAC ENGINE** is a commercial-grade emergency evacuation simulation and spatial telemetry platform rewritten from Java Swing into modern high-performance **C++ (C++17/20)**.
-
-Designed for real-world architectural safety analysis, smart building emergency management, and disaster response planning, FUTURA 3D provides full multi-floor 3D spatial simulation, multi-hazard propagation, IoT sensor grid response, crowd dynamics via Social Force Model and 3D A* pathfinding, and interactive multi-tab telemetry dashboards.
+> **Real-World Multi-Floor Emergency Evacuation Simulation & Analytics Platform in Modern C++**
 
 ---
 
-## 🚀 Key Features & Upgrades over Java Swing
+## Overview
 
-| Feature | Java Swing Version (v2.0) | FUTURA 3D C++ Engine (v3.0) |
-|---|---|---|
-| **Spatial Graphics** | 2D Grid Layout | **Full 3D Multi-Floor Building Rendering** (Orbit Camera, Floor Slices) |
-| **Building Support** | Single Floor | **Multi-Story Buildings** with vertical Stairwell & Elevator transitions |
-| **Pathfinding** | 2D A* | **3D A* Algorithm** with crowd density penalties & hazard cost rerouting |
-| **Agent Dynamics** | Simple Grid Movement | **Social Force Model** (Repulsion, Panic Speeds, Smoke Inhalation) |
-| **Hazard Models** | Static 2D Tiles | **Cellular Fire, Thermal Smoke Rise, Toxic Gas & Structural Collapse** |
-| **Smart Systems** | Manual Controls | **IoT Sensor Grid** (Smoke Detectors, Automated Sprinklers, Dynamic LED Exit Signs) |
-| **User Interface** | Single View Console | **Futuristic 5-Tab Command Center** (Control, Architect, Telemetry, Sensors, Settings) |
+**Emergency Evacuation System** is a C++-based emergency evacuation simulation and spatial telemetry platform rewritten from the Java Swing version into modern **C++17/20**.
+
+The system provides multi-floor 3D spatial simulation, multi-hazard propagation, IoT sensor grid response, crowd dynamics using the Social Force Model, 3D A* pathfinding, and interactive telemetry dashboards.
 
 ---
 
-## 📂 Project Architecture
+## Key Features & Upgrades over Java Swing
 
-```
+| Feature              | Java Swing Version (v2.0) | Emergency Evacuation System - C++                                                            |
+| -------------------- | ------------------------- | -------------------------------------------------------------------------------------------- |
+| **Spatial Graphics** | 2D Grid Layout            | **Full 3D Multi-Floor Building Rendering** with Orbit Camera and Floor Slices                |
+| **Building Support** | Single Floor              | **Multi-Story Buildings** with vertical Stairwell & Elevator transitions                     |
+| **Pathfinding**      | 2D A*                     | **3D A* Algorithm** with crowd density penalties & hazard cost rerouting                     |
+| **Agent Dynamics**   | Simple Grid Movement      | **Social Force Model** with repulsion, panic speeds, and smoke inhalation                    |
+| **Hazard Models**    | Static 2D Tiles           | **Cellular Fire, Thermal Smoke Rise, Toxic Gas & Structural Collapse**                       |
+| **Smart Systems**    | Manual Controls           | **IoT Sensor Grid** with Smoke Detectors, Automated Sprinklers, and Dynamic LED Exit Signs   |
+| **User Interface**   | Single View Console       | **Futuristic 5-Tab Command Center** for Control, Architect, Telemetry, Sensors, and Settings |
+
+---
+
+## Project Architecture
+
+```text
 Emergency_Evac_Sys_Cpp/
 ├── CMakeLists.txt              # Build configuration for GCC / Clang / MSVC
 ├── README.md                   # System documentation & manual
@@ -43,12 +43,12 @@ Emergency_Evac_Sys_Cpp/
 │   │   ├── Pathfinding.hpp     # 3D A* vertical pathfinding algorithm
 │   │   ├── HazardModel.hpp     # Multi-hazard cellular spread model
 │   │   ├── SensorGrid.hpp      # Smart IoT disaster response system
-│   │   └── EvacSimulationEngine.hpp # Master multi-threaded simulation controller
+│   │   └── EvacSimulationEngine.hpp # Master simulation controller
 │   ├── Analytics/
-│   │   ├── HeatmapGenerator.hpp# Crowd congestion & bottleneck heatmap generator
-│   │   └── EvacMetrics.hpp     # Real-time evacuation curves & efficiency calculator
+│   │   ├── HeatmapGenerator.hpp # Crowd congestion & bottleneck heatmap generator
+│   │   └── EvacMetrics.hpp      # Real-time evacuation curves & efficiency calculator
 │   └── UI/
-│       └── UIStyles.hpp        # Dark cyber styling & color constants
+│       └── UIStyles.hpp         # Dark cyber styling & color constants
 ├── src/                        # Complete C++ implementations
 │   ├── Core/
 │   ├── Simulation/
@@ -59,35 +59,39 @@ Emergency_Evac_Sys_Cpp/
 │   ├── school_multi_floor.json
 │   ├── hospital_complex.json
 │   └── highrise_office.json
+├── Screenshots/                # Project screenshots
 └── web_preview/
-    └── index.html              # Standalone Interactive 3D WebGL Command Center
+    └── index.html              # Standalone Interactive 3D Web Preview
 ```
 
 ---
 
-## 🖥️ How to Run the 3D Interactive Web App (Instant Preview)
+## How to Run the 3D Interactive Web App (Instant Preview)
 
-To immediately launch and test the interactive 3D simulation suite with full orbit controls, tabs, and interactive hazard painting:
+To immediately launch and test the interactive 3D simulation suite with orbit controls, tabs, and interactive hazard painting:
 
-1. Open `web_preview/index.html` in any web browser (Chrome, Edge, Firefox, Safari).
-2. Enjoy the 3D view:
-   - **Rotate Camera**: Left-Click + Drag.
-   - **Pan**: Right-Click + Drag.
-   - **Zoom**: Mouse Scroll Wheel.
-   - **Filter Floors**: Click `Floor 1`, `Floor 2`, or `All Floors` buttons.
-   - **Paint 3D Hazards**: Click `Paint Fire`, `Paint Smoke`, or `Toxic Gas` in Module 2 and click inside the 3D building.
-   - **Start Evacuation**: Click `START SIM` in Module 3.
-   - **Explore Tabs**: Click between **Command & Control**, **Building Architect**, **Telemetry & Heatmaps**, **IoT Sensor Grid**, and **Scenario Manager**.
+1. Open `web_preview/index.html` in any web browser such as Chrome, Edge, Firefox, or Safari.
+2. Explore the 3D simulation environment:
+
+   * **Rotate Camera:** Left-Click + Drag
+   * **Pan:** Right-Click + Drag
+   * **Zoom:** Mouse Scroll Wheel
+   * **Filter Floors:** Click `Floor 1`, `Floor 2`, or `All Floors`
+   * **Paint 3D Hazards:** Use `Paint Fire`, `Paint Smoke`, or `Toxic Gas`
+   * **Start Evacuation:** Click `START SIM`
+   * **Explore Tabs:** Command & Control, Building Architect, Telemetry & Heatmaps, IoT Sensor Grid, and Scenario Manager
 
 ---
 
-## 🛠️ How to Compile & Run the Native C++ Engine
+## How to Compile & Run the Native C++ Engine
 
 ### Prerequisites
-- Modern C++ Compiler (`g++`, `clang++`, or MSVC with C++17 support)
-- `cmake` (version 3.14 or higher)
+
+* Modern C++ Compiler (`g++`, `clang++`, or MSVC with C++17 support)
+* `cmake` version 3.14 or higher
 
 ### Build Instructions
+
 ```bash
 # 1. Navigate to the project directory
 cd Emergency_Evac_Sys_Cpp
@@ -101,17 +105,51 @@ cmake ..
 # 4. Compile the project
 cmake --build .
 
-# 5. Run the FUTURA 3D C++ Engine executable
+# 5. Run the Emergency Evacuation System executable
 ./FuturaEvac3D
 ```
 
 ---
 
-## 📊 Analytics & CSV Export
+## Analytics & CSV Export
+
 The engine continuously records:
-- **Evacuation Throughput Curve**
-- **Casualty & Smoke Inhalation Index**
-- **System Efficiency Score (%)**
-- **Bottleneck Congestion Heatmaps**
+
+* **Evacuation Throughput Curve**
+* **Casualty & Smoke Inhalation Index**
+* **System Efficiency Score (%)**
+* **Bottleneck Congestion Heatmaps**
 
 Telemetry data can be exported directly to standard CSV format via the Scenario Manager tab or C++ `metrics.exportToCSV()`.
+
+---
+
+## Screenshots
+
+### 1. 3D View
+
+![3D View 1](Screenshots/01-3D-view-1.png)
+
+### 2. 3D Simulation View
+
+![3D View 2](Screenshots/02-3D-view-2.png)
+
+### 3. 3D Building View
+
+![3D View 3](Screenshots/03-3D-view-3.png)
+
+### 4. What-If Scenarios
+
+![What-If Scenarios](Screenshots/04-what-if-scenerios.png)
+
+### 5. Risk Recommendations
+
+![Risk Recommendations](Screenshots/05-risk-recommendations.png)
+
+### 6. Heatmaps
+
+![Heatmaps](Screenshots/06-heatmaps.png)
+
+### 7. IoT Sensor Grid
+
+![IoT Sensor Grid](Screenshots/07-IOT-sensor-grid.png)
