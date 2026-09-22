@@ -1,5 +1,7 @@
-# FUTURA 3D E-VAC ENGINE (v3.0 Commercial Edition)
-> **Real-World Multi-Floor Emergency Evacuation Simulation & Analytics Platform in Modern C++**
+# Emergency Evacuation System
+
+A modern C++ emergency evacuation simulation and analytics system designed for multi-floor building evacuation, hazard simulation, pathfinding, IoT sensor monitoring, and evacuation analysis.
+
 
 ---
 
